@@ -1,0 +1,7 @@
+{
+  "crons": [
+    { "path": "/api/refresh-prices", "schedule": "35 14 * * 1-5" },
+    { "path": "/api/refresh-prices", "schedule": "5 21 * * 1-5" },
+    { "path": "/api/snapshot",       "schedule": "15 21 * * 1-5" }
+  ]
+}

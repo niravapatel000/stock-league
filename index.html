@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Stock League</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #f7f7f6; --surface: #ffffff;
+      --border: rgba(0,0,0,0.09); --border-mid: rgba(0,0,0,0.16);
+      --text: #1a1a18; --muted: #6b6b67; --hint: #a0a09c;
+      --green: #1d7a52; --green-bg: #eaf3de;
+      --red: #b53232;   --red-bg:   #fcebeb;
+      --blue: #185fa5;  --blue-bg:  #e6f1fb;
+      --amber: #854f0b; --amber-bg: #faeeda;
+      --radius: 10px; --radius-sm: 6px;
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); font-size: 15px; line-height: 1.5; min-height: 100vh; }
+
+    /* LOGIN */
+    #login-screen { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100vh; padding:2rem 1rem; }
+    .login-eyebrow { font-size:11px; font-weight:600; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); margin-bottom:1.5rem; }
+    .login-title { font-size:30px; font-weight:600; text-align:center; margin-bottom:.35rem; }
+    .login-sub { font-size:14px; color:var(--muted); text-align:center; margin-bottom:2rem; }
+    .login-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:1.5rem; width:100%; max-width:320px; }
+    .login-card label { font-size:12px; color:var(--muted); display:block; margin-bottom:5px; margin-top:1rem; }
+    .login-card label:first-child { margin-top:0; }
+    .login-card select, .login-card input[type="password"] { width:100%; padding:9px 11px; border:1px solid var(--border-mid); border-radius:var(--radius-sm); font-size:14px; background:var(--bg); color:var(--text); outline:none; }
+    .login-card select:focus, .login-card input:focus { border-color:var(--blue); }
+    .login-btn { width:100%; margin-top:1.25rem; padding:11px; background:var(--text); color:#fff; border:none; border-radius:var(--radius-sm); font-size:14px; font-weight:600; cursor:pointer; }
+    .login-btn:hover { opacity:.82; }
+    .login-error { font-size:13px; color:var(--red); margin-top:.75rem; text-align:center; min-height:18px; }
+    .login-hint { font-size:12px; color:var(--hint); text-align:center; margin-top:1.25rem; line-height:1.7; }
+
+    /* SHELL */
+    #main-app { display:none; min-height:100vh; }
+    .app-header { background:var(--surface); border-bottom:1px solid var(--border); padding:0 1.25rem; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; min-height:56px; position:sticky; top:0; z-index:10; }
+    .app-logo { font-size:15px; font-weight:700; }
+    .nav-tabs { display:flex; gap:2px; }
+    .nav-tab { font-size:13px; padding:6px 13px; border-radius:var(--radius-sm); border:none; cursor:pointer; color:var(--muted); background:transparent; font-weight:500; }
+    .nav-tab:hover { background:var(--bg); color:var(--text); }
+    .nav-tab.active { background:var(--bg); color:var(--text); border:1px solid var(--border-mid); }
+    .header-right { display:flex; align-items:center; gap:8px; }
+    .user-pill { font-size:12px; color:var(--muted); }
+    .admin-tag { font-size:10px; font-weight:600; padding:2px 7px; border-radius:20px; background:var(--amber-bg); color:var(--amber); margin-left:4px; }
+    .signout-btn { font-size:12px; color:var(--muted); background:none; border:none; cursor:pointer; padding:4px 6px; }
+    .signout-btn:hover { color:var(--text); }
+    .refresh-status { font-size:11px; color:var(--hint); }
+
+    /* LAYOUT */
+    .content { max-width:800px; margin:0 auto; padding:1.5rem 1.25rem; }
+    .tab-pane { display:none; }
+    .tab-pane.active { display:block; }
+    .section-label { font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin-bottom:.75rem; }
+    .divider { height:1px; background:var(--border); margin:1.5rem 0; }
+
+    /* LEADERBOARD */
+    .leader-list { display:flex; flex-direction:column; gap:8px; }
+    .leader-row { display:grid; grid-template-columns:36px 1fr auto auto; align-items:center; gap:12px; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:11px 15px; }
+    .leader-row.me { border-color:var(--blue); }
+    .rank { font-size:13px; font-weight:600; color:var(--hint); text-align:center; }
+    .rank.gold{color:#B8860B;}.rank.silver{color:#888;}.rank.bronze{color:#9E5330;}
+    .leader-name { font-size:14px; font-weight:600; display:flex; align-items:center; gap:6px; }
+    .you-badge { font-size:10px; padding:2px 7px; border-radius:20px; background:var(--blue-bg); color:var(--blue); font-weight:600; }
+    .leader-value { font-size:14px; font-weight:600; text-align:right; }
+    .leader-pct { font-size:13px; text-align:right; min-width:64px; }
+    .overview-row { display:flex; align-items:center; gap:10px; font-size:13px; margin-bottom:6px; }
+    .overview-name { font-weight:600; min-width:72px; }
+    .ticker-chip { font-family:monospace; font-size:11px; background:var(--bg); border:1px solid var(--border); padding:2px 7px; border-radius:4px; }
+
+    /* METRICS */
+    .metrics-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; margin-bottom:1.25rem; }
+    .metric-card { background:var(--bg); border-radius:var(--radius-sm); padding:.875rem 1rem; }
+    .metric-label { font-size:11px; color:var(--muted); margin-bottom:4px; font-weight:500; }
+    .metric-value { font-size:19px; font-weight:600; }
+
+    /* BUY BAR */
+    .buy-bar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:1.25rem; padding:1rem; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); }
+    .buy-bar label { font-size:12px; color:var(--muted); margin-right:4px; }
+    .buy-bar select, .buy-bar input { padding:7px 10px; border:1px solid var(--border-mid); border-radius:var(--radius-sm); font-size:13px; background:var(--bg); color:var(--text); outline:none; }
+    .buy-bar select:focus, .buy-bar input:focus { border-color:var(--blue); }
+    .buy-btn { padding:8px 16px; border-radius:var(--radius-sm); border:1px solid var(--border-mid); background:var(--surface); font-size:13px; font-weight:500; cursor:pointer; color:var(--green); }
+    .buy-btn:hover { background:var(--green-bg); border-color:var(--green); }
+    .action-msg { font-size:13px; color:var(--muted); margin-top:4px; width:100%; }
+
+    /* LOTS */
+    .ticker-section { margin-bottom:1.25rem; }
+    .ticker-header { display:flex; align-items:center; justify-content:space-between; padding:8px 12px; background:var(--bg); border-radius:var(--radius-sm); margin-bottom:4px; }
+    .ticker-header-left { display:flex; align-items:center; gap:10px; }
+    .ticker-sym { font-family:monospace; font-weight:700; font-size:13px; }
+    .ticker-co  { font-size:12px; color:var(--muted); }
+    .ticker-header-right { display:flex; align-items:center; gap:16px; font-size:13px; }
+    .ticker-total { font-weight:600; }
+    .lots-table { width:100%; border-collapse:collapse; font-size:13px; }
+    .lots-table th { text-align:left; font-size:11px; font-weight:600; color:var(--muted); padding:0 10px 6px; letter-spacing:.06em; text-transform:uppercase; }
+    .lots-table th.r, .lots-table td.r { text-align:right; }
+    .lots-table td { padding:9px 10px; border-top:1px solid var(--border); }
+    .lots-table tr:hover td { background:var(--bg); }
+    .lot-date { color:var(--muted); font-size:12px; }
+    .sell-lot-btn { font-size:11px; padding:3px 10px; border-radius:20px; border:1px solid var(--border-mid); background:transparent; cursor:pointer; color:var(--red); }
+    .sell-lot-btn:hover { background:var(--red-bg); border-color:var(--red); }
+    .empty-msg { text-align:center; padding:2rem; color:var(--muted); font-size:13px; }
+
+    /* SELL MODAL */
+    .modal-backdrop { position:fixed; inset:0; background:rgba(0,0,0,.35); z-index:100; display:flex; align-items:center; justify-content:center; padding:1rem; }
+    .modal { background:var(--surface); border-radius:var(--radius); padding:1.5rem; width:100%; max-width:380px; }
+    .modal h3 { font-size:16px; font-weight:600; margin-bottom:.25rem; }
+    .modal-sub { font-size:13px; color:var(--muted); margin-bottom:1.25rem; }
+    .modal-detail { font-size:13px; margin-bottom:1rem; display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+    .modal-detail span { color:var(--muted); }
+    .modal-detail strong { text-align:right; }
+    .modal-input-row { display:flex; align-items:center; gap:8px; margin-bottom:1rem; }
+    .modal-input-row label { font-size:13px; color:var(--muted); white-space:nowrap; }
+    .modal-input-row input { flex:1; padding:8px 10px; border:1px solid var(--border-mid); border-radius:var(--radius-sm); font-size:13px; outline:none; }
+    .modal-input-row input:focus { border-color:var(--blue); }
+    .modal-actions { display:flex; gap:8px; }
+    .modal-confirm { flex:1; padding:10px; border-radius:var(--radius-sm); border:none; background:var(--red); color:#fff; font-size:14px; font-weight:600; cursor:pointer; }
+    .modal-confirm:hover { opacity:.85; }
+    .modal-cancel { padding:10px 18px; border-radius:var(--radius-sm); border:1px solid var(--border-mid); background:transparent; font-size:14px; cursor:pointer; color:var(--muted); }
+    .modal-cancel:hover { background:var(--bg); }
+    .modal-msg { font-size:13px; color:var(--red); margin-top:8px; min-height:16px; }
+
+    /* STOCK POOL */
+    .pool-list { display:flex; flex-direction:column; gap:6px; }
+    .pool-row { display:flex; align-items:center; justify-content:space-between; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:11px 15px; }
+    .pool-ticker { font-family:monospace; font-weight:700; font-size:13px; margin-right:8px; }
+    .pool-name { font-size:12px; color:var(--muted); }
+    .pool-price { font-size:13px; font-weight:600; }
+    .pool-chg { font-size:12px; }
+    .remove-btn { font-size:11px; padding:3px 9px; border-radius:20px; border:1px solid var(--red); background:transparent; cursor:pointer; color:var(--red); }
+    .remove-btn:hover { background:var(--red-bg); }
+    .last-updated { font-size:11px; color:var(--hint); margin-top:8px; }
+
+    /* ADMIN */
+    .admin-panel { background:var(--amber-bg); border:1px solid rgba(133,79,11,.2); border-radius:var(--radius); padding:1.125rem 1.25rem; margin-top:1.25rem; }
+    .admin-panel-title { font-size:12px; font-weight:600; color:var(--amber); margin-bottom:.875rem; display:flex; align-items:center; gap:6px; }
+    .admin-inputs { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    .admin-inputs input, .admin-inputs select { padding:7px 10px; border:1px solid rgba(133,79,11,.25); border-radius:var(--radius-sm); font-size:13px; background:#fff; color:var(--text); outline:none; flex:1; min-width:90px; }
+    .admin-inputs input:focus, .admin-inputs select:focus { border-color:var(--amber); }
+    .admin-btn { padding:7px 15px; border-radius:var(--radius-sm); border:1px solid rgba(133,79,11,.3); background:#fff; font-size:13px; font-weight:500; cursor:pointer; color:var(--amber); white-space:nowrap; }
+    .admin-btn:hover { background:var(--amber-bg); }
+    .admin-msg { font-size:12px; margin-top:8px; min-height:16px; }
+    .admin-lots-table { width:100%; border-collapse:collapse; font-size:13px; margin-top:.75rem; }
+    .admin-lots-table th { text-align:left; font-size:11px; font-weight:600; color:var(--amber); padding:0 8px 6px; letter-spacing:.06em; text-transform:uppercase; }
+    .admin-lots-table td { padding:8px 8px; border-top:1px solid rgba(133,79,11,.12); vertical-align:middle; }
+    .admin-lots-table tr:hover td { background:rgba(255,255,255,.5); }
+    .edit-input { padding:4px 7px; border:1px solid rgba(133,79,11,.25); border-radius:4px; font-size:12px; width:100%; background:#fff; }
+    .save-lot-btn { font-size:11px; padding:3px 9px; border-radius:20px; border:1px solid rgba(133,79,11,.3); background:#fff; cursor:pointer; color:var(--amber); }
+    .save-lot-btn:hover { background:var(--amber-bg); }
+    .del-lot-btn { font-size:11px; padding:3px 9px; border-radius:20px; border:1px solid var(--red); background:#fff; cursor:pointer; color:var(--red); }
+    .del-lot-btn:hover { background:var(--red-bg); }
+    .locked-note { font-size:13px; color:var(--muted); margin-top:1.25rem; padding:.75rem 1rem; background:var(--bg); border-radius:var(--radius-sm); }
+
+    /* PERFORMANCE TAB */
+    .perf-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; margin-bottom:1.75rem; }
+    .perf-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:1.25rem 1.375rem; }
+    .perf-card-name { font-size:11px; font-weight:600; color:var(--muted); letter-spacing:.06em; text-transform:uppercase; margin-bottom:.875rem; display:flex; align-items:center; justify-content:space-between; }
+    .perf-row { display:flex; align-items:baseline; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--border); gap:12px; }
+    .perf-row:last-child { border-bottom:none; }
+    .perf-label { font-size:12px; color:var(--muted); white-space:nowrap; }
+    .perf-value { font-size:14px; font-weight:600; text-align:right; }
+    .perf-value.hero { font-size:22px; line-height:1.15; }
+    .building-pill { font-size:10px; padding:2px 7px; border-radius:20px; background:var(--bg); color:var(--hint); border:1px solid var(--border); font-weight:500; white-space:nowrap; }
+    .chart-wrap { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:1.25rem 1.375rem; margin-bottom:1.75rem; }
+    .chart-title { font-size:11px; font-weight:600; color:var(--muted); letter-spacing:.06em; text-transform:uppercase; margin-bottom:1.125rem; }
+    .chart-svg { width:100%; display:block; }
+    .chart-legend { display:flex; gap:16px; flex-wrap:wrap; margin-top:.875rem; }
+    .legend-item { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted); }
+    .legend-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+    .perf-empty { text-align:center; padding:4rem 1rem; }
+    .perf-empty-icon { font-size:36px; margin-bottom:.875rem; }
+    .perf-empty-title { font-size:17px; font-weight:600; margin-bottom:.5rem; }
+    .perf-empty-sub { font-size:13px; color:var(--muted); line-height:1.65; max-width:360px; margin:0 auto; }
+
+    .pos { color:var(--green); } .neg { color:var(--red); }
+    .spinner { display:inline-block; width:12px; height:12px; border:2px solid var(--border); border-top-color:var(--muted); border-radius:50%; animation:spin .7s linear infinite; vertical-align:middle; margin-right:4px; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    @media (max-width:600px) {
+      .metrics-grid { grid-template-columns:repeat(2,1fr); }
+      .nav-tab { padding:6px 8px; font-size:12px; }
+      .perf-grid { grid-template-columns:1fr; }
+      .leader-row { grid-template-columns:28px 1fr auto; }
+      .leader-pct { display:none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <p class="login-eyebrow">Stock League</p>
+  <h1 class="login-title">Portfolio Competition</h1>
+  <p class="login-sub">$1,000,000 hypothetical &nbsp;·&nbsp; Beat your friends</p>
+  <div class="login-card">
+    <label>Select player</label>
+    <select id="name-select">
+      <option value="">Choose your name...</option>
+      <option value="Nirav">Nirav</option>
+      <option value="Desiree">Desiree</option>
+      <option value="Chloe">Chloe</option>
+    </select>
+    <label>Password</label>
+    <input type="password" id="pw-input" placeholder="Enter password" />
+    <button class="login-btn" onclick="tryLogin()">Enter</button>
+    <p class="login-error" id="login-error"></p>
+  </div>
+  <p class="login-hint">Group password: <strong>stocks2024</strong><br>Nirav's admin password: <strong>admin2024</strong></p>
+</div>
+
+<!-- APP -->
+<div id="main-app">
+  <header class="app-header">
+    <span class="app-logo">Stock League</span>
+    <nav class="nav-tabs">
+      <button class="nav-tab active"  onclick="showTab('leaderboard',this)">Leaderboard</button>
+      <button class="nav-tab"         onclick="showTab('portfolio',this)">My Portfolio</button>
+      <button class="nav-tab"         onclick="showTab('performance',this)">Performance</button>
+      <button class="nav-tab"         onclick="showTab('pool',this)">Stock Pool</button>
+      <button class="nav-tab" id="admin-tab" style="display:none" onclick="showTab('admin',this)">Admin</button>
+    </nav>
+    <div class="header-right">
+      <span class="refresh-status" id="refresh-status"></span>
+      <span class="user-pill" id="user-pill"></span>
+      <button class="signout-btn" onclick="signOut()">Sign out</button>
+    </div>
+  </header>
+
+  <main class="content">
+
+    <!-- LEADERBOARD -->
+    <div class="tab-pane active" id="tab-leaderboard">
+      <p class="section-label">Rankings</p>
+      <div class="leader-list" id="leaderboard-list"></div>
+      <div class="divider"></div>
+      <p class="section-label">Holdings overview</p>
+      <div id="holdings-overview"></div>
+    </div>
+
+    <!-- MY PORTFOLIO -->
+    <div class="tab-pane" id="tab-portfolio">
+      <div class="metrics-grid" id="my-metrics"></div>
+      <div class="buy-bar">
+        <label>Stock</label>
+        <select id="buy-ticker"><option value="">Select stock</option></select>
+        <label>Shares</label>
+        <input type="number" id="buy-shares" placeholder="e.g. 100" min="1" step="1" style="width:100px;" />
+        <label>Date</label>
+        <input type="date" id="buy-date" style="width:140px;" />
+        <button class="buy-btn" onclick="doBuy()">Buy</button>
+        <span class="action-msg" id="action-msg"></span>
+      </div>
+      <p class="section-label">Open lots</p>
+      <div id="holdings-body"></div>
+    </div>
+
+    <!-- PERFORMANCE -->
+    <div class="tab-pane" id="tab-performance">
+      <div id="perf-content"></div>
+    </div>
+
+    <!-- STOCK POOL -->
+    <div class="tab-pane" id="tab-pool">
+      <p class="section-label">Available stocks</p>
+      <div class="pool-list" id="pool-list"></div>
+      <p class="last-updated" id="last-updated"></p>
+      <div id="pool-admin-zone"></div>
+    </div>
+
+    <!-- ADMIN -->
+    <div class="tab-pane" id="tab-admin">
+      <p class="section-label">Edit lots — all players</p>
+      <div class="admin-panel">
+        <div class="admin-panel-title"><span class="admin-tag">Admin</span> Add new lot for a player</div>
+        <div class="admin-inputs">
+          <select id="al-user" style="max-width:110px;">
+            <option value="">Player</option>
+            <option value="Nirav">Nirav</option>
+            <option value="Desiree">Desiree</option>
+            <option value="Chloe">Chloe</option>
+          </select>
+          <select id="al-ticker" style="max-width:110px;"><option value="">Stock</option></select>
+          <input type="number" id="al-shares" placeholder="Shares" min="1" style="max-width:90px;" />
+          <input type="number" id="al-cost"   placeholder="Cost/share ($)" step="0.0001" style="max-width:130px;" />
+          <input type="date"   id="al-date"   style="max-width:145px;" />
+          <button class="admin-btn" onclick="adminAddLot()">Add lot</button>
+        </div>
+        <p class="admin-msg" id="al-msg"></p>
+      </div>
+      <div style="margin-top:1.5rem;" id="admin-lots-zone"></div>
+    </div>
+
+  </main>
+</div>
+
+<!-- SELL MODAL -->
+<div class="modal-backdrop" id="sell-modal" style="display:none">
+  <div class="modal">
+    <h3>Sell from lot</h3>
+    <p class="modal-sub" id="sell-modal-sub"></p>
+    <div class="modal-detail" id="sell-modal-detail"></div>
+    <div class="modal-input-row">
+      <label>Shares to sell</label>
+      <input type="number" id="sell-shares-input" min="1" step="1" placeholder="0" />
+    </div>
+    <div id="sell-preview" style="font-size:13px;color:var(--muted);margin-bottom:1rem;min-height:20px;"></div>
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="closeSellModal()">Cancel</button>
+      <button class="modal-confirm" onclick="confirmSell()">Sell shares</button>
+    </div>
+    <p class="modal-msg" id="sell-modal-msg"></p>
+  </div>
+</div>
+
+<script>
+// ── CONSTANTS ─────────────────────────────────────────────────
+const GROUP_PW   = 'stocks2024';
+const ADMIN_PW   = 'admin2024';
+const ADMIN_USER = 'Nirav';
+const STARTING   = 1_000_000;
+const REFRESH_MS = 15 * 60 * 1000;
+const PLAYERS    = ['Nirav','Desiree','Chloe'];
+const COLORS     = { Nirav:'#185fa5', Desiree:'#1d7a52', Chloe:'#9333ea' };
+
+let currentUser = null, isAdmin = false;
+let state = { users:[], lots:[], stocks:[] };
+let perfData = null; // loaded lazily when Performance tab opens
+let refreshTimer = null;
+let activeSellLot = null;
+
+// ── AUTH ──────────────────────────────────────────────────────
+function tryLogin() {
+  const name = document.getElementById('name-select').value;
+  const pw   = document.getElementById('pw-input').value;
+  const err  = document.getElementById('login-error');
+  if (!name) { err.textContent='Please select your name'; return; }
+  if (name === ADMIN_USER && pw === ADMIN_PW) isAdmin = true;
+  else if (pw === GROUP_PW) isAdmin = false;
+  else { err.textContent='Wrong password'; return; }
+  currentUser = name;
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('main-app').style.display = 'block';
+  document.getElementById('user-pill').innerHTML = name + (isAdmin ? '<span class="admin-tag">Admin</span>' : '');
+  if (isAdmin) document.getElementById('admin-tab').style.display = '';
+  document.getElementById('buy-date').value = today();
+  loadData(true);
+  scheduleRefreshes();
+}
+
+function signOut() {
+  currentUser = null; isAdmin = false; perfData = null;
+  clearInterval(refreshTimer);
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('main-app').style.display = 'none';
+  document.getElementById('admin-tab').style.display = 'none';
+  ['pw-input','login-error','name-select'].forEach(id => {
+    const el = document.getElementById(id);
+    el.value !== undefined ? (el.value = '') : (el.textContent = '');
+  });
+}
+document.getElementById('pw-input').addEventListener('keydown', e => { if (e.key==='Enter') tryLogin(); });
+
+// ── DATA ──────────────────────────────────────────────────────
+async function loadData(triggerPriceRefresh=false) {
+  setRefreshStatus('loading');
+  try {
+    if (triggerPriceRefresh) await fetch('/api/refresh-prices').catch(()=>{});
+    const res = await fetch('/api/data');
+    state = await res.json();
+    renderAll();
+    setRefreshStatus('done');
+  } catch(e) { setRefreshStatus('error'); }
+}
+
+async function loadPerfData() {
+  try {
+    const res = await fetch('/api/performance');
+    perfData = await res.json();
+  } catch(e) { perfData = null; }
+}
+
+function setRefreshStatus(s) {
+  const el = document.getElementById('refresh-status');
+  if (s==='loading') el.innerHTML = '<span class="spinner"></span>Updating…';
+  else if (s==='done') el.textContent = 'Updated ' + new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  else el.textContent = 'Update failed';
+}
+
+function scheduleRefreshes() {
+  clearInterval(refreshTimer);
+  refreshTimer = setInterval(() => loadData(true), REFRESH_MS);
+  function scheduleMarket() {
+    const et = new Date(new Date().toLocaleString('en-US',{timeZone:'America/New_York'}));
+    const targets = [new Date(et).setHours(9,35,0,0), new Date(et).setHours(16,5,0,0)];
+    const next = targets.map(t=>t-et).filter(d=>d>0).sort()[0];
+    if (next) setTimeout(()=>{ loadData(true); scheduleMarket(); }, next);
+  }
+  scheduleMarket();
+}
+
+// ── HELPERS ───────────────────────────────────────────────────
+const fmt     = n => '$'+Math.round(n).toLocaleString();
+const fmtD    = n => '$'+Number(n).toFixed(4);
+const fmtPct  = n => (n>=0?'+':'')+Number(n).toFixed(2)+'%';
+const cls     = n => n>=0?'pos':'neg';
+const today   = () => new Date().toISOString().slice(0,10);
+const fmtDate = d => d ? new Date(d+'T12:00:00').toLocaleDateString([],{month:'short',day:'numeric',year:'numeric'}) : '—';
+
+function getPrice(ticker) {
+  const s = state.stocks.find(s=>s.ticker===ticker);
+  return s ? Number(s.price) : 0;
+}
+
+function calcPortfolio(userName) {
+  const user = state.users.find(u=>u.name===userName);
+  const cash = user ? Number(user.cash) : STARTING;
+  const myLots = state.lots.filter(l=>l.user_name===userName);
+  let invested=0, costTotal=0;
+  for (const l of myLots) {
+    invested  += getPrice(l.ticker) * l.shares;
+    costTotal += Number(l.cost_basis) * l.shares;
+  }
+  const total = cash + invested;
+  return { cash, invested, total, pl:total-STARTING, costTotal };
+}
+
+// ── IRR (Newton-Raphson XIRR) ─────────────────────────────────
+// cashflows: [{amount, date}]  (negative=outflow, positive=inflow)
+function xirr(cashflows) {
+  if (!cashflows || cashflows.length < 2) return null;
+  const t0 = cashflows[0].date;
+  const flows = cashflows.map(cf => ({
+    amount: cf.amount,
+    years: (cf.date - t0) / (365.25 * 24 * 3600 * 1000)
+  }));
+  let rate = 0.1;
+  for (let i=0; i<100; i++) {
+    let f=0, df=0;
+    for (const fl of flows) {
+      const v = Math.pow(1+rate, fl.years);
+      f  += fl.amount / v;
+      df -= fl.years * fl.amount / (v * (1+rate));
+    }
+    const newRate = rate - f/df;
+    if (Math.abs(newRate - rate) < 1e-7) return newRate;
+    rate = newRate;
+    if (!isFinite(rate)) return null;
+  }
+  return null;
+}
+
+function buildIRRCashflows(userName) {
+  // outflows: each lot purchase (negative)
+  // inflow:   current portfolio value (positive, today)
+  const lots = state.lots.filter(l=>l.user_name===userName);
+  if (!lots.length) return null;
+  const flows = lots.map(l => ({
+    amount: -(Number(l.cost_basis) * l.shares),
+    date: new Date(l.purchase_date+'T12:00:00')
+  }));
+  const { total } = calcPortfolio(userName);
+  // starting cash as initial investment on earliest lot date or today if none
+  const earliest = flows.reduce((m,f) => f.date < m ? f.date : m, new Date());
+  // treat uninvested starting cash as invested from start for IRR context:
+  // simplest: just use lot cashflows + terminal value
+  flows.push({ amount: total, date: new Date() });
+  flows.sort((a,b) => a.date - b.date);
+  return flows;
+}
+
+// ── WINDOWED RETURN from snapshots ────────────────────────────
+function windowedReturn(userName, daysAgo) {
+  if (!perfData || !perfData.snapshots) return null;
+  const snaps = perfData.snapshots
+    .filter(s=>s.user_name===userName)
+    .sort((a,b)=>a.snapshot_date.localeCompare(b.snapshot_date));
+  if (snaps.length < 2) return null;
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - daysAgo);
+  const cutoffStr = cutoff.toISOString().slice(0,10);
+  // find closest snapshot on or before cutoff
+  const baseline = snaps.filter(s=>s.snapshot_date<=cutoffStr).pop();
+  if (!baseline) return null;
+  const current = calcPortfolio(userName).total;
+  return ((current - Number(baseline.total_value)) / Number(baseline.total_value)) * 100;
+}
+
+// ── RENDER ALL ────────────────────────────────────────────────
+function renderAll() {
+  renderLeaderboard();
+  renderPortfolio();
+  renderPool();
+  if (isAdmin) renderAdmin();
+  // re-render performance only if tab is active
+  if (document.getElementById('tab-performance').classList.contains('active')) {
+    renderPerformance();
+  }
+}
+
+// ── LEADERBOARD ───────────────────────────────────────────────
+function renderLeaderboard() {
+  const ranked = PLAYERS.map(name => {
+    const p = calcPortfolio(name);
+    return { name, ...p, pct:(p.pl/STARTING)*100 };
+  }).sort((a,b)=>b.total-a.total);
+
+  const rc=['gold','silver','bronze'], rs=['1st','2nd','3rd'];
+  document.getElementById('leaderboard-list').innerHTML = ranked.map((r,i)=>`
+    <div class="leader-row ${r.name===currentUser?'me':''}">
+      <span class="rank ${rc[i]}">${rs[i]}</span>
+      <span class="leader-name">${r.name}
+        ${r.name===currentUser?'<span class="you-badge">you</span>':''}
+        ${r.name===ADMIN_USER?'<span class="admin-tag">Admin</span>':''}
+      </span>
+      <span class="leader-value">${fmt(r.total)}</span>
+      <span class="leader-pct ${cls(r.pct)}">${fmtPct(r.pct)}</span>
+    </div>`).join('');
+
+  document.getElementById('holdings-overview').innerHTML = ranked.map(r=>{
+    const tickers=[...new Set(state.lots.filter(l=>l.user_name===r.name).map(l=>l.ticker))];
+    const chips=tickers.length
+      ? tickers.map(t=>`<span class="ticker-chip">${t}</span>`).join(' ')
+      : '<span style="color:var(--hint);font-size:12px;">no holdings</span>';
+    return `<div class="overview-row"><span class="overview-name">${r.name}</span>${chips}</div>`;
+  }).join('');
+}
+
+// ── MY PORTFOLIO ──────────────────────────────────────────────
+function renderPortfolio() {
+  const p = calcPortfolio(currentUser);
+  const pct = (p.pl/STARTING)*100;
+  document.getElementById('my-metrics').innerHTML = `
+    <div class="metric-card"><div class="metric-label">Total value</div><div class="metric-value">${fmt(p.total)}</div></div>
+    <div class="metric-card"><div class="metric-label">Cash</div><div class="metric-value">${fmt(p.cash)}</div></div>
+    <div class="metric-card"><div class="metric-label">Invested</div><div class="metric-value">${fmt(p.invested)}</div></div>
+    <div class="metric-card"><div class="metric-label">Return</div><div class="metric-value ${cls(pct)}">${fmtPct(pct)}</div></div>`;
+
+  const sel=document.getElementById('buy-ticker'), prev=sel.value;
+  sel.innerHTML='<option value="">Select stock</option>'+state.stocks.map(s=>
+    `<option value="${s.ticker}"${s.ticker===prev?' selected':''}>${s.ticker} — ${fmt(s.price)}</option>`).join('');
+
+  const myLots=state.lots.filter(l=>l.user_name===currentUser);
+  const tickers=[...new Set(myLots.map(l=>l.ticker))];
+  const container=document.getElementById('holdings-body');
+  if (!myLots.length) { container.innerHTML='<p class="empty-msg">No open lots yet — buy stocks above.</p>'; return; }
+
+  container.innerHTML=tickers.map(ticker=>{
+    const lots=myLots.filter(l=>l.ticker===ticker);
+    const price=getPrice(ticker);
+    const totalShares=lots.reduce((s,l)=>s+l.shares,0);
+    const totalVal=price*totalShares;
+    const totalCost=lots.reduce((s,l)=>s+Number(l.cost_basis)*l.shares,0);
+    const totalPLPct=((totalVal-totalCost)/totalCost)*100;
+    const info=state.stocks.find(s=>s.ticker===ticker);
+    return `<div class="ticker-section">
+      <div class="ticker-header">
+        <div class="ticker-header-left">
+          <span class="ticker-sym">${ticker}</span>
+          <span class="ticker-co">${info?.name||''}</span>
+        </div>
+        <div class="ticker-header-right">
+          <span>${totalShares} shares</span>
+          <span class="ticker-total">${fmt(totalVal)}</span>
+          <span class="${cls(totalPLPct)}">${fmtPct(totalPLPct)}</span>
+        </div>
+      </div>
+      <table class="lots-table">
+        <thead><tr>
+          <th>Lot date</th><th class="r">Shares</th><th class="r">Cost basis</th>
+          <th class="r">Price</th><th class="r">Value</th><th class="r">P&amp;L</th><th></th>
+        </tr></thead>
+        <tbody>${lots.map(l=>{
+          const lv=price*l.shares, lc=Number(l.cost_basis)*l.shares;
+          const lpl=((price-Number(l.cost_basis))/Number(l.cost_basis))*100;
+          return `<tr>
+            <td class="lot-date">${fmtDate(l.purchase_date)}</td>
+            <td class="r">${l.shares}</td>
+            <td class="r">${fmtD(l.cost_basis)}</td>
+            <td class="r">${fmtD(price)}</td>
+            <td class="r">${fmt(lv)}</td>
+            <td class="r ${cls(lpl)}">${fmtPct(lpl)}</td>
+            <td class="r"><button class="sell-lot-btn" onclick="openSellModal(${l.id})">Sell</button></td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table>
+    </div>`;
+  }).join('');
+}
+
+// ── PERFORMANCE ───────────────────────────────────────────────
+async function renderPerformance() {
+  const container = document.getElementById('perf-content');
+  container.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--muted);"><span class="spinner"></span> Loading…</div>';
+
+  if (!perfData) await loadPerfData();
+
+  const hasSnapshots = perfData?.snapshots?.length >= 2;
+  const snapshotsByUser = {};
+  if (hasSnapshots) {
+    for (const s of perfData.snapshots) {
+      if (!snapshotsByUser[s.user_name]) snapshotsByUser[s.user_name] = [];
+      snapshotsByUser[s.user_name].push(s);
+    }
+  }
+
+  // Build per-player cards
+  const cards = PLAYERS.map(name => {
+    const p = calcPortfolio(name);
+    const pct = (p.pl / STARTING) * 100;
+
+    // IRR
+    const flows = buildIRRCashflows(name);
+    const irr = flows ? xirr(flows) : null;
+    const irrStr = irr !== null ? fmtPct(irr * 100) : null;
+
+    // windowed returns
+    const ret1M  = hasSnapshots ? windowedReturn(name, 30)  : null;
+    const retYTD = hasSnapshots ? windowedReturn(name, daysSinceYearStart()) : null;
+    const ret12M = hasSnapshots ? windowedReturn(name, 365) : null;
+
+    const isMe = name === currentUser;
+
+    const metricRow = (label, value, isBuilding=false) => {
+      if (isBuilding || value === null) {
+        return `<div class="perf-row">
+          <span class="perf-label">${label}</span>
+          <span class="building-pill">building…</span>
+        </div>`;
+      }
+      const n = Number(value);
+      return `<div class="perf-row">
+        <span class="perf-label">${label}</span>
+        <span class="perf-value ${cls(n)}">${fmtPct(n)}</span>
+      </div>`;
+    };
+
+    return `<div class="perf-card" style="${isMe?'border-color:var(--blue);':''}">
+      <div class="perf-card-name">
+        ${name}
+        ${isMe?'<span class="you-badge">you</span>':''}
+        ${name===ADMIN_USER?'<span class="admin-tag">Admin</span>':''}
+      </div>
+      <div class="perf-row">
+        <span class="perf-label">Portfolio value</span>
+        <span class="perf-value hero ${cls(p.pl)}">${fmt(p.total)}</span>
+      </div>
+      <div class="perf-row">
+        <span class="perf-label">Total return</span>
+        <span class="perf-value ${cls(pct)}">${fmtPct(pct)}</span>
+      </div>
+      ${metricRow('Lifetime IRR', irrStr !== null ? parseFloat(irrStr) : null, irrStr===null && state.lots.filter(l=>l.user_name===name).length===0)}
+      ${irrStr !== null ? `<div class="perf-row"><span class="perf-label">Lifetime IRR</span><span class="perf-value ${cls(parseFloat(irrStr))}">${irrStr}</span></div>` : metricRow('Lifetime IRR', null, true)}
+      ${metricRow('Last month', ret1M)}
+      ${metricRow('Year to date', retYTD)}
+      ${metricRow('Last 12 months', ret12M)}
+    </div>`;
+  });
+
+  // Fix duplicate IRR rows — rebuild cleanly
+  const cardHTMLs = PLAYERS.map(name => {
+    const p = calcPortfolio(name);
+    const pct = (p.pl / STARTING) * 100;
+    const flows = buildIRRCashflows(name);
+    const irr = flows ? xirr(flows) : null;
+    const hasLots = state.lots.filter(l=>l.user_name===name).length > 0;
+    const ret1M  = hasSnapshots ? windowedReturn(name, 30)  : null;
+    const retYTD = hasSnapshots ? windowedReturn(name, daysSinceYearStart()) : null;
+    const ret12M = hasSnapshots ? windowedReturn(name, 365) : null;
+    const isMe = name === currentUser;
+
+    function row(label, pctVal) {
+      if (pctVal === null) return `<div class="perf-row"><span class="perf-label">${label}</span><span class="building-pill">building…</span></div>`;
+      const n = Number(pctVal);
+      return `<div class="perf-row"><span class="perf-label">${label}</span><span class="perf-value ${cls(n)}">${fmtPct(n)}</span></div>`;
+    }
+
+    const irrPct = (irr !== null && hasLots) ? irr * 100 : null;
+
+    return `<div class="perf-card" style="${isMe?'border-color:var(--blue);':''}">
+      <div class="perf-card-name">
+        ${name}
+        ${isMe?'<span class="you-badge">you</span>':''}
+        ${name===ADMIN_USER?'<span class="admin-tag">Admin</span>':''}
+      </div>
+      <div class="perf-row">
+        <span class="perf-label">Portfolio value</span>
+        <span class="perf-value hero ${cls(p.pl)}">${fmt(p.total)}</span>
+      </div>
+      ${row('Total return', pct)}
+      ${row('Lifetime IRR', irrPct)}
+      ${row('Last month', ret1M)}
+      ${row('Year to date', retYTD)}
+      ${row('Last 12 months', ret12M)}
+    </div>`;
+  });
+
+  // Chart
+  let chartHTML = '';
+  if (hasSnapshots) {
+    chartHTML = buildChart(snapshotsByUser);
+  } else {
+    chartHTML = `<div class="chart-wrap">
+      <div class="chart-title">Portfolio value over time</div>
+      <div class="perf-empty">
+        <div class="perf-empty-icon">📈</div>
+        <div class="perf-empty-title">Data is building</div>
+        <div class="perf-empty-sub">The chart will appear once daily snapshots start accumulating. Check back tomorrow — snapshots are taken automatically at 4:15pm ET each trading day.</div>
+      </div>
+    </div>`;
+  }
+
+  container.innerHTML = `
+    ${chartHTML}
+    <p class="section-label">Player breakdown</p>
+    <div class="perf-grid">${cardHTMLs.join('')}</div>
+    ${!hasSnapshots ? `<p style="font-size:12px;color:var(--hint);text-align:center;margin-top:.5rem;">Time-windowed returns (last month, YTD, last 12M) require historical snapshots and will appear once data builds up.</p>` : ''}
+  `;
+}
+
+function daysSinceYearStart() {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), 0, 1);
+  return Math.floor((now - start) / (24*3600*1000));
+}
+
+function buildChart(snapshotsByUser) {
+  // collect all dates across all users, sorted
+  const allDates = [...new Set(
+    Object.values(snapshotsByUser).flat().map(s=>s.snapshot_date)
+  )].sort();
+  if (allDates.length < 2) return '';
+
+  const W=560, H=200, PL=50, PR=16, PT=12, PB=32;
+  const plotW=W-PL-PR, plotH=H-PT-PB;
+
+  // compute % return series per player
+  const series = PLAYERS.map(name => {
+    const snaps = (snapshotsByUser[name]||[]).sort((a,b)=>a.snapshot_date.localeCompare(b.snapshot_date));
+    const points = allDates.map(d => {
+      const s = snaps.filter(x=>x.snapshot_date<=d).pop();
+      return s ? ((Number(s.total_value)-STARTING)/STARTING)*100 : null;
+    }).filter(v=>v!==null);
+    return { name, points };
+  });
+
+  const allVals = series.flatMap(s=>s.points);
+  const minV = Math.min(0, ...allVals), maxV = Math.max(0, ...allVals);
+  const range = maxV - minV || 1;
+
+  const xScale = i => PL + (i/(allDates.length-1))*plotW;
+  const yScale = v => PT + plotH - ((v-minV)/range)*plotH;
+
+  // x axis labels (show ~5 evenly spaced)
+  const labelIdx = [0, ...Array.from({length:3},(_,i)=>Math.round((i+1)*(allDates.length-1)/4)), allDates.length-1]
+    .filter((v,i,a)=>a.indexOf(v)===i);
+
+  const xLabels = labelIdx.map(i=>{
+    const d = new Date(allDates[i]+'T12:00:00');
+    const label = d.toLocaleDateString([],{month:'short',day:'numeric'});
+    return `<text x="${xScale(i)}" y="${H-6}" text-anchor="middle" fill="#a0a09c" font-size="10">${label}</text>`;
+  }).join('');
+
+  // zero line
+  const zeroY = yScale(0);
+  const zeroLine = `<line x1="${PL}" y1="${zeroY}" x2="${W-PR}" y2="${zeroY}" stroke="#e0e0dc" stroke-width="1" stroke-dasharray="3,3"/>`;
+
+  // y axis labels
+  const yTicks = [minV, 0, maxV].filter((v,i,a)=>a.indexOf(v)===i);
+  const yLabels = yTicks.map(v=>
+    `<text x="${PL-6}" y="${yScale(v)+4}" text-anchor="end" fill="#a0a09c" font-size="10">${v>=0?'+':''}${v.toFixed(1)}%</text>`
+  ).join('');
+
+  // lines
+  const lines = series.map(({name,points})=>{
+    if (points.length < 2) return '';
+    const usableDates = allDates.slice(0, points.length);
+    const d = usableDates.map((_, i) => `${i===0?'M':'L'}${xScale(i).toFixed(1)},${yScale(points[i]).toFixed(1)}`).join(' ');
+    return `<path d="${d}" fill="none" stroke="${COLORS[name]}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`;
+  }).join('');
+
+  const legend = PLAYERS.map(name=>
+    `<div class="legend-item"><div class="legend-dot" style="background:${COLORS[name]}"></div>${name}</div>`
+  ).join('');
+
+  return `<div class="chart-wrap">
+    <div class="chart-title">Portfolio return over time</div>
+    <svg class="chart-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">
+      ${zeroLine}${yLabels}${xLabels}${lines}
+    </svg>
+    <div class="chart-legend">${legend}</div>
+  </div>`;
+}
+
+// ── STOCK POOL ────────────────────────────────────────────────
+function renderPool() {
+  const updated = state.stocks[0]?.updated_at
+    ? 'Prices as of '+new Date(state.stocks[0].updated_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : '';
+  document.getElementById('last-updated').textContent = updated;
+
+  document.getElementById('pool-list').innerHTML = state.stocks.map(s=>`
+    <div class="pool-row">
+      <div><span class="pool-ticker">${s.ticker}</span><span class="pool-name">${s.name}</span></div>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <span class="pool-price">${fmt(s.price)}</span>
+        <span class="pool-chg ${cls(s.change_pct)}">${fmtPct(s.change_pct)}</span>
+        ${isAdmin?`<button class="remove-btn" onclick="adminRemoveStock('${s.ticker}')">Remove</button>`:''}
+      </div>
+    </div>`).join('');
+
+  document.getElementById('pool-admin-zone').innerHTML = isAdmin ? `
+    <div class="admin-panel">
+      <div class="admin-panel-title"><span class="admin-tag">Admin</span> Add stock to pool</div>
+      <div class="admin-inputs">
+        <input type="text"   id="ns-ticker" placeholder="Ticker" style="max-width:110px;text-transform:uppercase;" />
+        <input type="text"   id="ns-name"   placeholder="Company name" />
+        <input type="number" id="ns-price"  placeholder="Price ($)" step="0.0001" style="max-width:120px;" />
+        <button class="admin-btn" onclick="adminAddStock()">Add stock</button>
+      </div>
+      <p class="admin-msg" id="ns-msg"></p>
+    </div>` : `<p class="locked-note">Only Nirav (admin) can add or remove stocks from the pool.</p>`;
+}
+
+// ── ADMIN ─────────────────────────────────────────────────────
+function renderAdmin() {
+  const sel=document.getElementById('al-ticker'), prev=sel.value;
+  sel.innerHTML='<option value="">Stock</option>'+state.stocks.map(s=>
+    `<option value="${s.ticker}"${s.ticker===prev?' selected':''}>${s.ticker}</option>`).join('');
+
+  const zone=document.getElementById('admin-lots-zone');
+  zone.innerHTML=PLAYERS.map(player=>{
+    const lots=state.lots.filter(l=>l.user_name===player);
+    const user=state.users.find(u=>u.name===player);
+    const cash=user?Number(user.cash):STARTING;
+    if (!lots.length) return `<div style="margin-bottom:1.25rem;">
+      <p class="section-label">${player} &nbsp;<span style="font-weight:400;color:var(--hint);">cash: ${fmt(cash)}</span></p>
+      <p style="font-size:13px;color:var(--hint);">No open lots.</p></div>`;
+    return `<div style="margin-bottom:1.5rem;">
+      <p class="section-label">${player} &nbsp;<span style="font-weight:400;color:var(--hint);">cash: ${fmt(cash)}</span></p>
+      <table class="admin-lots-table">
+        <thead><tr><th>Ticker</th><th>Date</th><th>Shares</th><th>Cost/share</th><th>Value</th><th></th></tr></thead>
+        <tbody>${lots.map(l=>{
+          const val=getPrice(l.ticker)*l.shares;
+          return `<tr>
+            <td><strong style="font-family:monospace;">${l.ticker}</strong></td>
+            <td><input class="edit-input" id="ed-date-${l.id}"   type="date"   value="${l.purchase_date||''}" style="width:138px;"/></td>
+            <td><input class="edit-input" id="ed-shares-${l.id}" type="number" value="${l.shares}" min="0.0001" step="any" style="width:80px;"/></td>
+            <td><input class="edit-input" id="ed-cost-${l.id}"   type="number" value="${Number(l.cost_basis).toFixed(4)}" step="0.0001" style="width:90px;"/></td>
+            <td style="font-size:12px;color:var(--muted);">${fmt(val)}</td>
+            <td style="display:flex;gap:6px;flex-wrap:wrap;">
+              <button class="save-lot-btn" onclick="adminSaveLot(${l.id})">Save</button>
+              <button class="del-lot-btn"  onclick="adminDeleteLot(${l.id})">Delete</button>
+            </td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table>
+    </div>`;
+  }).join('');
+}
+
+// ── TABS ──────────────────────────────────────────────────────
+function showTab(name, btn) {
+  document.querySelectorAll('.tab-pane').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  btn.classList.add('active');
+  if (name==='performance') renderPerformance();
+}
+
+// ── BUY ───────────────────────────────────────────────────────
+async function doBuy() {
+  const ticker=document.getElementById('buy-ticker').value;
+  const shares=parseFloat(document.getElementById('buy-shares').value);
+  const date=document.getElementById('buy-date').value||today();
+  const msg=document.getElementById('action-msg');
+  if (!ticker||!shares||shares<=0){msg.textContent='Select a stock and enter shares.';return;}
+  msg.textContent='Processing…';
+  try {
+    const res=await fetch('/api/buy',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({user_name:currentUser,ticker,shares,purchase_date:date})});
+    const data=await res.json();
+    if (!res.ok){msg.textContent=data.error;return;}
+    document.getElementById('buy-shares').value='';
+    msg.textContent=`Bought ${shares} ${ticker} @ ${fmtD(data.price)} on ${fmtDate(date)} — lot cost ${fmt(data.cost)}`;
+    perfData=null; // invalidate perf cache
+    await loadData(false);
+  } catch(e){msg.textContent='Error — please try again.';}
+}
+
+// ── SELL MODAL ────────────────────────────────────────────────
+function openSellModal(lotId) {
+  const lot=state.lots.find(l=>l.id===lotId);
+  if (!lot) return;
+  const price=getPrice(lot.ticker);
+  activeSellLot=lot;
+  document.getElementById('sell-modal-sub').textContent=`${lot.ticker} — lot opened ${fmtDate(lot.purchase_date)}`;
+  document.getElementById('sell-modal-detail').innerHTML=`
+    <span>Shares in lot</span><strong>${lot.shares}</strong>
+    <span>Cost basis</span><strong>${fmtD(lot.cost_basis)}/share</strong>
+    <span>Current price</span><strong>${fmtD(price)}/share</strong>
+    <span>Unrealized P&L</span><strong class="${cls(price-Number(lot.cost_basis))}">${fmtPct(((price-Number(lot.cost_basis))/Number(lot.cost_basis))*100)}</strong>`;
+  document.getElementById('sell-shares-input').value='';
+  document.getElementById('sell-shares-input').max=lot.shares;
+  document.getElementById('sell-preview').textContent='';
+  document.getElementById('sell-modal-msg').textContent='';
+  document.getElementById('sell-modal').style.display='flex';
+  document.getElementById('sell-shares-input').oninput=function(){
+    const s=parseFloat(this.value);
+    if(!s||s<=0){document.getElementById('sell-preview').textContent='';return;}
+    const proceeds=price*s, pl=(price-Number(lot.cost_basis))*s;
+    document.getElementById('sell-preview').innerHTML=
+      `Proceeds: <strong>${fmt(proceeds)}</strong> &nbsp;·&nbsp; Realized P&L: <strong class="${cls(pl)}">${pl>=0?'+':''}${fmt(pl)}</strong>`;
+  };
+}
+function closeSellModal(){document.getElementById('sell-modal').style.display='none';activeSellLot=null;}
+async function confirmSell(){
+  const shares=parseFloat(document.getElementById('sell-shares-input').value);
+  const msg=document.getElementById('sell-modal-msg');
+  if(!shares||shares<=0){msg.textContent='Enter shares to sell.';return;}
+  if(shares>activeSellLot.shares){msg.textContent=`Max ${activeSellLot.shares} shares in this lot.`;return;}
+  msg.textContent='Processing…';
+  try {
+    const res=await fetch('/api/sell',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({user_name:currentUser,lot_id:activeSellLot.id,shares})});
+    const data=await res.json();
+    if(!res.ok){msg.textContent=data.error;return;}
+    closeSellModal();
+    document.getElementById('action-msg').textContent=
+      `Sold ${shares} ${data.ticker} for ${fmt(data.proceeds)} (P&L: ${data.pl>=0?'+':''}${fmt(data.pl)})`;
+    perfData=null;
+    await loadData(false);
+  } catch(e){msg.textContent='Error — please try again.';}
+}
+document.getElementById('sell-modal').addEventListener('click',e=>{if(e.target===document.getElementById('sell-modal'))closeSellModal();});
+
+// ── ADMIN ACTIONS ─────────────────────────────────────────────
+async function adminAddStock(){
+  const ticker=document.getElementById('ns-ticker').value.trim().toUpperCase();
+  const name=document.getElementById('ns-name').value.trim();
+  const price=parseFloat(document.getElementById('ns-price').value);
+  const msg=document.getElementById('ns-msg');
+  if(!ticker||!name||!price){msg.style.color='var(--red)';msg.textContent='Fill in all fields.';return;}
+  const res=await fetch('/api/pool',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({admin_password:ADMIN_PW,ticker,name,price})});
+  const data=await res.json();
+  if(!res.ok){msg.style.color='var(--red)';msg.textContent=data.error;return;}
+  msg.style.color='var(--green)';msg.textContent=ticker+' added.';
+  document.getElementById('ns-ticker').value='';
+  document.getElementById('ns-name').value='';
+  document.getElementById('ns-price').value='';
+  await loadData(false);
+}
+async function adminRemoveStock(ticker){
+  if(!confirm(`Remove ${ticker} from the pool?`))return;
+  await fetch('/api/pool',{method:'DELETE',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({admin_password:ADMIN_PW,ticker})});
+  await loadData(false);
+}
+async function adminAddLot(){
+  const user_name=document.getElementById('al-user').value;
+  const ticker=document.getElementById('al-ticker').value;
+  const shares=parseFloat(document.getElementById('al-shares').value);
+  const cost_basis=parseFloat(document.getElementById('al-cost').value);
+  const purchase_date=document.getElementById('al-date').value;
+  const msg=document.getElementById('al-msg');
+  if(!user_name||!ticker||!shares||!cost_basis||!purchase_date){msg.style.color='var(--red)';msg.textContent='Fill in all fields.';return;}
+  const res=await fetch('/api/lots',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({admin_password:ADMIN_PW,user_name,ticker,shares,cost_basis,purchase_date})});
+  const data=await res.json();
+  if(!res.ok){msg.style.color='var(--red)';msg.textContent=data.error;return;}
+  msg.style.color='var(--green)';msg.textContent=`Lot added for ${user_name}.`;
+  document.getElementById('al-shares').value='';
+  document.getElementById('al-cost').value='';
+  perfData=null;
+  await loadData(false);
+}
+async function adminSaveLot(lotId){
+  const shares=parseFloat(document.getElementById(`ed-shares-${lotId}`).value);
+  const cost_basis=parseFloat(document.getElementById(`ed-cost-${lotId}`).value);
+  const purchase_date=document.getElementById(`ed-date-${lotId}`).value;
+  const res=await fetch('/api/lots',{method:'PUT',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({admin_password:ADMIN_PW,lot_id:lotId,shares,cost_basis,purchase_date})});
+  if(res.ok){perfData=null;await loadData(false);}
+  else{const d=await res.json();alert(d.error);}
+}
+async function adminDeleteLot(lotId){
+  const refund=confirm('Refund the cost basis cash to this player?\nOK = refund · Cancel = delete only');
+  if(!confirm(`Delete this lot${refund?' and refund cash':''}?`))return;
+  const res=await fetch('/api/lots',{method:'DELETE',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({admin_password:ADMIN_PW,lot_id:lotId,refund_cash:refund})});
+  if(res.ok){perfData=null;await loadData(false);}
+  else{const d=await res.json();alert(d.error);}
+}
+</script>
+</body>
+</html>
