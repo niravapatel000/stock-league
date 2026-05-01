@@ -1,32 +1,23 @@
+const BASE = process.env.SUPABASE_URL;
+const KEY  = process.env.SUPABASE_SERVICE_KEY;
+
+const hdrs = {
+  'apikey': KEY,
+  'Authorization': `Bearer ${KEY}`,
+};
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-
-  const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_KEY;
-
-  // Debug: show if env vars are set
-  if (!url || !key) {
-    return res.status(500).json({
-      error: 'Missing env vars',
-      has_url: !!url,
-      has_key: !!key,
-      url_preview: url ? url.substring(0, 30) + '...' : null,
-      key_preview: key ? key.substring(0, 20) + '...' : null,
-    });
-  }
-
   try {
-    const r = await fetch(`${url}/rest/v1/users?select=*`, {
-      headers: {
-        'apikey': key,
-        'Authorization': `Bearer ${key}`,
-      },
-    });
-    const text = await r.text();
-    return res.status(200).json({
-      status: r.status,
-      raw: text,
-    });
+    const [usersR, lotsR, stocksR] = await Promise.all([
+      fetch(`${BASE}/rest/v1/users?select=*&order=name`, { headers: hdrs }),
+      fetch(`${BASE}/rest/v1/lots?select=*&order=purchase_date`, { headers: hdrs }),
+      fetch(`${BASE}/rest/v1/stock_pool?select=*&order=ticker`, { headers: hdrs }),
+    ]);
+    const [users, lots, stocks] = await Promise.all([
+      usersR.json(), lotsR.json(), stocksR.json(),
+    ]);
+    return res.status(200).json({ users, lots, stocks });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
